@@ -104,7 +104,8 @@ namespace mesh
             if (line.compare(0, 2, "v ") == 0)
             {
                 iss >> trash;
-                gm::Vec3f v = {0, 0, 0};
+//                gm::Vec3f v{0, 0, 0};
+                gm::Vec<3, float> v{0, 0, 0};
                 for (int i = 0; i < 3; i++) iss >> v[i];
                 vertices.push_back(v);
                 continue;
@@ -113,7 +114,7 @@ namespace mesh
             if (line.compare(0, 3, "vn ") == 0)
             {
                 iss >> trash >> trash;
-                gm::VecBase<3, float> vn = {0, 0, 0};
+                gm::Vec3f vn = {0, 0, 0};
                 for (size_t i = 0; i < 3; i++) iss >> vn[i];
                 normals.push_back(vn);
                 continue;
@@ -122,7 +123,7 @@ namespace mesh
             if (line.compare(0, 3, "vt ") == 0)
             {
                 iss >> trash >> trash;
-                gm::VecBase<2, float> vt = {0, 0};
+                gm::Vec2f vt = {0, 0};
                 for (int i = 0; i < 2; i++) iss >> vt[i];
                 txcoords.push_back(vt);
                 continue;

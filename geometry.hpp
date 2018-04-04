@@ -8,14 +8,14 @@
 #include <functional>
 #include <ostream>
 
+#include "b2f_features.hpp"
+
 namespace gm
 {
 
 
 template<size_t DimCols, size_t DimRows, typename T>
-class MatBase;
-
-
+class Mat;
 
 
 /**
@@ -30,49 +30,272 @@ class MatBase;
 */
 
     template<size_t DIM, typename T>
-    class VecBase
+    class Vec
     {
+        using braced_list = std::initializer_list<T>;
 
-    public:
-        VecBase()
+    public CTORS:
+        Vec()
         {
             for (int i = 0; i < DIM; i++)
             {
-                components_[i] = T();
+                static_cast<T&>(getComponent(i)) = T();
             }
         }
 
-        T& operator [] (const int i)
+        Vec(const Vec<DIM,T>& other)
         {
-            assert(i < DIM);
-            return components_[i];
+            for (int i = 0; i < DIM; i++)
+            {
+                static_cast<T&>(getComponent(i)) = other[i];
+            }
         }
 
+        Vec(const braced_list& list) {
+            assert(list.size() == DIM);
 
-        VecBase(std::initializer_list<T> list) {
-            assert(list.size() != DIM);
-            std::cout << "{list}\n";
-            int i = 0;
+            size_t i = 0;
             for (auto& el: list)
             {
-                this->operator[](i++) = el;
+                static_cast<T&>(getComponent(i++)) = el;
+            }
+        }
+
+    public OPERATORS:
+
+        T& operator [] (const size_t& idx)
+        {
+            return static_cast<T&>(getComponent(idx));
+        }
+
+        const T& operator [] (const size_t& idx) const
+        {
+            return getComponent(idx);
+        }
+
+
+    private METHODS:
+        inline const T& getComponent(const size_t& idx) const
+        {
+            assert(idx < DIM);
+            return components_[idx];
+        }
+
+
+    protected FIELDS:
+        T components_[DIM];
+    };
+
+
+
+/////////////////////////////////////////////////////////////////////////////////
+
+
+    template <typename T>
+    class Vec<2, T>
+    {
+        using braced_list = std::initializer_list<T>;
+
+    private CONSTANTS:
+
+        static const int DIM = 2;
+
+    public FIELDS:
+        T x, y;
+
+    public CTORS:
+
+        Vec()
+        {
+            for (size_t i = 0; i < DIM; i++)
+            {
+                const_cast<T&>(getComponent(i++)) = T();
             }
         }
 
 
-//        T magnitude() {
-//            T res = T();
-//            for (int i = 0; i < DIM; i++)
-//            {
-//                res += this->operator[](i) * this->operator[](i);
-//            }
-//
-//            return std::sqrt(res);
-//        }
+        Vec(const braced_list& list) {
+            assert(list.size() == DIM);
 
-    protected:
-        T components_[DIM];
+            size_t i = 0;
+            for (auto& el: list)
+            {
+                const_cast<T&>(getComponent(i++)) = el;
+            }
+        }
+
+    public OPERATORS:
+
+        T& operator [] (const size_t& idx)
+        {
+            return const_cast<T&>(getComponent(idx));
+        }
+
+        const T& operator [] (const size_t& idx) const
+        {
+            return getComponent(idx);
+        }
+
+    private METHODS:
+
+        inline const T& getComponent(const size_t& idx) const
+        {
+            assert(idx < 3);
+            switch (idx)
+            {
+                case 0:
+                    return x;
+                case 1:
+                    return y;
+                default:
+                    return x;
+            }
+        }
+
     };
+
+    using Vec2f = Vec<2, float>;
+    using Vec2i = Vec<2, int>;
+
+    template <typename T>
+    class Vec<3, T>
+    {
+        using braced_list = std::initializer_list<T>;
+
+    private CONSTANTS:
+
+        static const int DIM = 3;
+
+    public FIELDS:
+
+        T x, y, z;
+
+    public CTORS:
+
+        Vec()
+        {
+            for (size_t i = 0; i < DIM; i++)
+            {
+                const_cast<T&>(getComponent(i++)) = T();
+            }
+        }
+
+        Vec(const braced_list& list) {
+            assert(list.size() == DIM);
+
+            size_t i = 0;
+            for (auto& el: list)
+            {
+                const_cast<T&>(getComponent(i++)) = el;
+            }
+        }
+
+
+    public OPERATORS:
+
+        T& operator [] (const size_t& idx)
+        {
+            return const_cast<T&>(getComponent(idx));
+        }
+
+        const T& operator [] (const size_t& idx) const
+        {
+            return  getComponent(idx);
+        }
+
+    private METHODS:
+
+        inline const T& getComponent(const size_t& idx) const
+        {
+            assert(idx < DIM);
+            switch (idx)
+            {
+                case 0:
+                    return x;
+                case 1:
+                    return y;
+                case 2:
+                    return z;
+                default:
+                    return x;
+            }
+        }
+    };
+
+    using Vec3f = Vec<3, float>;
+    using Vec3i = Vec<3, int>;
+
+    template <typename T>
+    class Vec<4, T>
+    {
+        using braced_list = std::initializer_list<T>;
+
+    private CONSTANTS:
+
+        static const int DIM = 4;
+
+    public FIELDS:
+
+        T x, y, z, w;
+
+    public CTORS:
+
+        Vec()
+        {
+            for (size_t i = 0; i < DIM; i++)
+            {
+                const_cast<T&>(getComponent(i++)) = T();
+            }
+        }
+
+        Vec(const braced_list& list) {
+            assert(list.size() == DIM);
+
+            size_t i = 0;
+            for (auto& el: list)
+            {
+                const_cast<T&>(getComponent(i++)) = el;
+            }
+        }
+
+    public OPERATORS:
+
+        T& operator [] (const size_t& idx)
+        {
+            return const_cast<T&>(getComponent(idx));
+        }
+
+        const T& operator [] (const size_t& idx) const
+        {
+            return getComponent(idx);
+        }
+
+    private METHODS:
+
+        inline const T& getComponent(const size_t& idx) const
+        {
+            assert(idx < DIM);
+            switch (idx)
+            {
+                case 0:
+                    return x;
+                case 1:
+                    return y;
+                case 2:
+                    return z;
+                case 3:
+                    return w;
+                default:
+                    return x;
+            }
+        }
+
+
+    };
+
+    using Vec4f = Vec<4, float>;
+    using Vec4i = Vec<4, int>;
+
 
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -89,7 +312,7 @@ class MatBase;
  * @return scalar
  */
     template<size_t DIM, typename T>
-    T operator * (VecBase<DIM, T> lhs, VecBase<DIM, T> rhs)
+    T operator * (Vec<DIM, T> lhs, Vec<DIM, T> rhs)
     {
         T result = T();
         for (size_t i = 0; i < DIM; i++)
@@ -108,7 +331,7 @@ class MatBase;
  * @return
  */
     template<size_t DIM, typename T, typename U>
-    VecBase<DIM, T> operator + (VecBase<DIM, T> vec_l, VecBase<DIM, U> vec_r)
+    Vec<DIM, T> operator + (Vec<DIM, T> vec_l, Vec<DIM, U> vec_r)
     {
         for (size_t i = 0; i < DIM; i++)
         {
@@ -118,7 +341,7 @@ class MatBase;
     }
 
     template<size_t DIM, typename T, typename U>
-    VecBase<DIM, T> operator - (VecBase<DIM, T> vec_l, VecBase<DIM, U> vec_r)
+    Vec<DIM, T> operator - (Vec<DIM, T> vec_l, Vec<DIM, U> vec_r)
     {
         for (size_t i = 0; i < DIM; i++)
         {
@@ -138,7 +361,7 @@ class MatBase;
  * @return vector
  */
     template<size_t DIM, typename T, typename U>
-    VecBase<DIM, T> operator * (VecBase<DIM, T> vec, U scalar)
+    Vec<DIM, T> operator * (Vec<DIM, T> vec, U scalar)
     {
         for (size_t i = DIM; i--;)
         {
@@ -148,7 +371,7 @@ class MatBase;
     }
 
     template<size_t DIM, typename T, typename U>
-    VecBase<DIM, T> operator / (VecBase<DIM, T> vec, U scalar)
+    Vec<DIM, T> operator / (Vec<DIM, T> vec, U scalar)
     {
         for (size_t i = DIM; i--;)
         {
@@ -158,9 +381,9 @@ class MatBase;
     }
 
     template <size_t DIM, typename T>
-    VecBase<DIM, T> normalize(VecBase<DIM, T>&& vec, T len = 1)
+    Vec<DIM, T> normalize(Vec<DIM, T>&& vec, T len = 1)
     {
-        auto res = VecBase<DIM, T>();
+        auto res = Vec<DIM, T>();
 
         for (int i = 0; i < DIM; i++)
         {
@@ -170,9 +393,9 @@ class MatBase;
     }
 
     template <size_t DIM, typename T>
-    VecBase<DIM, T> normalize(VecBase<DIM, T>& vec, T len = 1)
+    Vec<DIM, T> normalize(Vec<DIM, T>& vec, T len = 1)
     {
-        auto res = VecBase<DIM, T>();
+        auto res = Vec<DIM, T>();
 
         for (int i = 0; i < DIM; i++)
         {
@@ -182,7 +405,7 @@ class MatBase;
     }
 
     template <size_t DIM, typename T>
-    T dot(VecBase<DIM, T>& vec1, VecBase<DIM, T>& vec2)
+    T dot(Vec<DIM, T>& vec1, Vec<DIM, T>& vec2)
     {
         T result = T();
         for (size_t i = 0; i < DIM; i++)
@@ -194,9 +417,9 @@ class MatBase;
 
 
     template<size_t LEN, size_t DIM, typename T>
-    VecBase<LEN, T> embed(const VecBase<DIM, T> &v, T fill = 1)
+    Vec<LEN, T> embed(const Vec<DIM, T> &v, T fill = 1)
     {
-        VecBase<LEN, T> ret;
+        Vec<LEN, T> ret;
         for (size_t i = LEN; i--;)
         {
             ret[i] = (i < DIM ? v[i] : fill);
@@ -205,29 +428,29 @@ class MatBase;
     }
 
     template<size_t LEN, size_t DIM, typename T>
-    VecBase<LEN, T> proj(const VecBase<DIM, T> &v)
+    Vec<LEN, T> proj(const Vec<DIM, T> &v)
     {
-        VecBase<LEN, T> ret;
+        Vec<LEN, T> ret;
         for (size_t i = LEN; i--; ret[i] = v[i])
         {}
         return ret;
     }
 
     template<typename T>
-    VecBase<3, T> cross(VecBase<3, T> v1, VecBase<3, T> v2)
+    Vec<3, T> cross(Vec<3, T> v1, Vec<3, T> v2)
     {
-        return VecBase<3, T>(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x);
+        return Vec<3, T>(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x);
     }
 
     template<typename T>
-    VecBase<3, T> operator^(VecBase<3, T> v1, VecBase<3, T> v2)
+    Vec<3, T> operator^(Vec<3, T> v1, Vec<3, T> v2)
     {
-        return VecBase<3, T>(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x);
+        return Vec<3, T>(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x);
     }
 
 
     template <size_t DIM, typename T>
-    std::ostream& operator<<(std::ostream& os, const VecBase<DIM, T>& vec)
+    std::ostream& operator<<(std::ostream& os, const Vec<DIM, T>& vec)
     {
         os << "{";
         for (int i = 0; i < DIM; i++) {
@@ -243,7 +466,7 @@ class MatBase;
 template<size_t DIM, typename T>
 struct dt
 {
-    static T det(const MatBase<DIM, DIM, T> &src)
+    static T det(const Mat<DIM, DIM, T> &src)
     {
         T ret = 0;
         for (size_t i = 0; i < DIM; i++)
@@ -257,7 +480,7 @@ struct dt
 template<typename T>
 struct dt<1, T>
 {
-    static T det(const MatBase<1, 1, T> &src)
+    static T det(const Mat<1, 1, T> &src)
     {
         return src[0][0];
     }
@@ -266,18 +489,27 @@ struct dt<1, T>
 /////////////////////////////////////////////////////////////////////////////////
 
 template<size_t DimRows, size_t DimCols, typename T>
-class MatBase
+class Mat
 {
-    using TMat = MatBase<DimRows, DimCols, T>;
-    using TVec = VecBase<DimCols, T>;
+    using braced_list = std::initializer_list<std::initializer_list<T>>;
+    using TMat = Mat<DimRows, DimCols, T>;
+    using TVec = Vec<DimCols, T>;
 
-    TVec rows[DimRows];
+    Vec<DimCols, T> rows[DimRows];
 public:
-    MatBase() {}
+    Mat() {}
 
-    MatBase(std::initializer_list< TVec >&& list)
+    Mat(const braced_list& list)
     {
-
+        size_t row_idx = 0;
+        for (auto& row: list) {
+            size_t col_idx = 0;
+            for (auto& elem: row) {
+                rows[row_idx][col_idx] = elem;
+                col_idx++;
+            }
+            row_idx++;
+        }
     }
 
     TVec& operator [] (const size_t row_idx)
@@ -292,13 +524,13 @@ public:
         return rows[row_idx];
     }
 
-    TVec col(const size_t col_idx) const
+    Vec<DimCols, T> col(const size_t col_idx) const
     {
         assert(col_idx < DimCols);
-        TVec col;
+        Vec<DimCols, T> col;
         for (size_t row_idx = 0; row_idx < DimRows; row_idx++)
         {
-            col[row_idx] = rows[row_idx][col_idx];
+            col[row_idx] = 0; //rows[row_idx][col_idx];
         }
         return col;
     }
@@ -330,9 +562,9 @@ public:
         return dt<DimCols, T>::det(*this);
     }
 
-    MatBase<DimRows - 1, DimCols - 1, T> get_minor(size_t row, size_t col) const
+    Mat<DimRows - 1, DimCols - 1, T> get_minor(size_t row, size_t col) const
     {
-        MatBase<DimRows - 1, DimCols - 1, T> ret;
+        Mat<DimRows - 1, DimCols - 1, T> ret;
         for (size_t i = 0; i < DimRows - 1; i++)
         {
             for (size_t j = 0; j < DimCols - 1; j++)
@@ -388,9 +620,9 @@ public:
 /////////////////////////////////////////////////////////////////////////////////
 
 template<size_t DimRows, size_t DimCols, typename T>
-VecBase<DimRows, T> operator * (const MatBase<DimRows, DimCols, T> mat, VecBase<DimCols, T> vec)
+Vec<DimRows, T> operator * (const Mat<DimRows, DimCols, T> mat, Vec<DimCols, T> vec)
 {
-    VecBase<DimRows, T> ret;
+    Vec<DimRows, T> ret;
     for (size_t i = 0; i < DimRows; i++)
     {
         ret[i] = mat[i] * vec;
@@ -399,9 +631,9 @@ VecBase<DimRows, T> operator * (const MatBase<DimRows, DimCols, T> mat, VecBase<
 }
 
 template<size_t R1, size_t C1, size_t C2, typename T>
-MatBase<R1, C2, T> operator * (MatBase<R1, C1, T> l_mat, MatBase<C1, C2, T> r_mat)
+Mat<R1, C2, T> operator * (Mat<R1, C1, T> l_mat, Mat<C1, C2, T> r_mat)
 {
-    MatBase<R1, C2, T> result;
+    Mat<R1, C2, T> result;
     for (size_t i = 0; i < R1; i++)
     {
         for (size_t j = 0; j < C2; j++)
@@ -413,7 +645,7 @@ MatBase<R1, C2, T> operator * (MatBase<R1, C1, T> l_mat, MatBase<C1, C2, T> r_ma
 }
 
 template<size_t DimRows, size_t DimCols, typename T>
-MatBase<DimCols, DimRows, T> operator / (MatBase<DimRows, DimCols, T> mat, T scalar)
+Mat<DimCols, DimRows, T> operator / (Mat<DimRows, DimCols, T> mat, T scalar)
 {
     for (size_t i = 0; i < DimRows; i++)
     {
@@ -423,7 +655,7 @@ MatBase<DimCols, DimRows, T> operator / (MatBase<DimRows, DimCols, T> mat, T sca
 }
 
 template<size_t DimRows, size_t DimCols, class T>
-std::ostream &operator << (std::ostream &out, MatBase<DimRows, DimCols, T> &m)
+std::ostream &operator << (std::ostream &out, Mat<DimRows, DimCols, T> &m)
 {
     for (size_t i = 0; i < DimRows; i++)
     { out << m[i] << std::endl; }
@@ -432,144 +664,11 @@ std::ostream &operator << (std::ostream &out, MatBase<DimRows, DimCols, T> &m)
 
 /////////////////////////////////////////////////////////////////////////////////
 
-    using Mat4x4 = MatBase<4, 4, float>;
-    using Mat3x3 = MatBase<3, 3, float>;
+    using Mat4x4 = Mat<4, 4, float>;
+    using Mat3x3 = Mat<3, 3, float>;
 
     /////////////////////////////////////////////////////////////////////////////////
 
-    template <typename T>
-    class VecBase<2, T>
-    {
-
-    public:
-
-        T& operator [] (const int idx)
-        {
-            assert(idx < 2);
-            switch (idx)
-            {
-                case 0:
-                    return x;
-                case 1:
-                    return y;
-                default:
-                    return x;
-            }
-        }
-
-        const T& operator [] (const int idx) const
-        {
-            assert(idx < 2);
-            switch (idx)
-            {
-                case 0:
-                    return x;
-                case 1:
-                    return y;
-                default:
-                    return x;
-            }
-        }
-
-        T x, y;
-    };
-
-    typedef VecBase<2, float> Vec2f;
-    typedef VecBase<2, int> Vec2i;
-
-    template <typename T>
-    class VecBase<3, T>
-    {
-    public:
-        T& operator [] (const int idx)
-        {
-            assert(idx < 3);
-            switch (idx)
-            {
-                case 0:
-                    return x;
-                case 1:
-                    return y;
-                case 2:
-                    return z;
-                default:
-                    return x;
-            }
-        }
-
-        const T& operator [] (const int idx) const
-        {
-            assert(idx < 3);
-            switch (idx)
-            {
-                case 0:
-                    return x;
-                case 1:
-                    return y;
-                case 2:
-                    return z;
-                default:
-                    return x;
-            }
-        }
-
-        static VecBase<3, T> Zero() {
-            return VecBase<3, T>{0,0,0};
-        };
-
-
-        T x, y, z;
-    };
-
-    using Vec3f = VecBase<3, float>;
-    using Vec3i = VecBase<3, int>;
-
-    template <typename T>
-    class VecBase<4, T>
-    {
-    public:
-
-        T& operator [] (const int idx)
-        {
-            assert(idx < 4);
-            switch (idx)
-            {
-                case 0:
-                    return x;
-                case 1:
-                    return y;
-                case 2:
-                    return z;
-                case 3:
-                    return w;
-                default:
-                    return x;
-            }
-        }
-
-        const T& operator [] (const int idx) const
-        {
-            assert(idx < 4);
-            switch (idx)
-            {
-                case 0:
-                    return x;
-                case 1:
-                    return y;
-                case 2:
-                    return z;
-                case 3:
-                    return w;
-                default:
-                    return x;
-            }
-        }
-
-        T x, y, z, w;
-    };
-
-    using Vec4f = VecBase<4, float>;
-    using Vec4i = VecBase<4, int>;
 
 /////////////////////////////////////////////////////////////////////////////////
 
