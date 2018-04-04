@@ -30,99 +30,9 @@ class Mat;
 */
 
     template<size_t DIM, typename T>
-    class Vec
+    class VecBase
     {
         using braced_list = std::initializer_list<T>;
-
-    public CTORS:
-        Vec()
-        {
-            for (int i = 0; i < DIM; i++)
-            {
-                static_cast<T&>(getComponent(i)) = T();
-            }
-        }
-
-        Vec(const Vec<DIM,T>& other)
-        {
-            for (int i = 0; i < DIM; i++)
-            {
-                static_cast<T&>(getComponent(i)) = other[i];
-            }
-        }
-
-        Vec(const braced_list& list) {
-            assert(list.size() == DIM);
-
-            size_t i = 0;
-            for (auto& el: list)
-            {
-                static_cast<T&>(getComponent(i++)) = el;
-            }
-        }
-
-    public OPERATORS:
-
-        T& operator [] (const size_t& idx)
-        {
-            return static_cast<T&>(getComponent(idx));
-        }
-
-        const T& operator [] (const size_t& idx) const
-        {
-            return getComponent(idx);
-        }
-
-
-    private METHODS:
-        inline const T& getComponent(const size_t& idx) const
-        {
-            assert(idx < DIM);
-            return components_[idx];
-        }
-
-
-    protected FIELDS:
-        T components_[DIM];
-    };
-
-
-
-/////////////////////////////////////////////////////////////////////////////////
-
-
-    template <typename T>
-    class Vec<2, T>
-    {
-        using braced_list = std::initializer_list<T>;
-
-    private CONSTANTS:
-
-        static const int DIM = 2;
-
-    public FIELDS:
-        T x, y;
-
-    public CTORS:
-
-        Vec()
-        {
-            for (size_t i = 0; i < DIM; i++)
-            {
-                const_cast<T&>(getComponent(i++)) = T();
-            }
-        }
-
-
-        Vec(const braced_list& list) {
-            assert(list.size() == DIM);
-
-            size_t i = 0;
-            for (auto& el: list)
-            {
-                const_cast<T&>(getComponent(i++)) = el;
-            }
-        }
 
     public OPERATORS:
 
@@ -136,10 +46,99 @@ class Mat;
             return getComponent(idx);
         }
 
+
+    protected METHODS:
+        virtual const T& getComponent(const size_t& idx) const = 0;
+
+        void init()
+        {
+            for (size_t i = 0; i < DIM; i++)
+            {
+                const_cast<T&>(getComponent(i)) = T();
+            }
+        }
+
+        void init(const VecBase<DIM,T>& other)
+        {
+            for (size_t i = 0; i < DIM; i++)
+            {
+                const_cast<T&>(getComponent(i)) = other[i];
+            }
+        }
+
+        void init(const braced_list& list)
+        {
+            assert(list.size() == DIM);
+
+            size_t i = 0;
+            for (auto& el: list)
+            {
+                const_cast<T&>(getComponent(i++)) = el;
+            }
+        }
+
+    };
+
+
+    template<size_t DIM, typename T>
+    class Vec: public VecBase<DIM, T>
+    {
+        using TClass = Vec<DIM,T>;
+        using TBase = VecBase<DIM,T>;
+        using braced_list = std::initializer_list<T>;
+
+    public CTORS:
+
+        explicit Vec() { TBase::init(); }
+
+        explicit Vec(const VecBase<DIM,T>& other) { TBase::init(other); }
+
+        explicit Vec(const braced_list& list) { TBase::init(list); }
+
+    private METHODS:
+        const T& getComponent(const size_t& idx) const override
+        {
+            puts(__PRETTY_FUNCTION__);
+            assert(idx < DIM);
+            return components_[idx];
+        }
+
+
+    protected FIELDS:
+        T components_[DIM];
+    };
+
+
+/////////////////////////////////////////////////////////////////////////////////
+
+
+    template <typename T>
+    class Vec<2, T>: public VecBase<2, T>
+    {
+        using braced_list = std::initializer_list<T>;
+        using TClass = Vec<2,T>;
+        using TBase = VecBase<2,T>;
+
+    private CONSTANTS:
+
+        static const int DIM = 2;
+
+    public FIELDS:
+        T x, y;
+
+    public CTORS:
+
+        Vec() { TBase::init(); }
+
+        Vec(const VecBase<DIM,T>& other) { TBase::init(other); }
+
+        Vec(const braced_list& list) { TBase::init(list); }
+
     private METHODS:
 
-        inline const T& getComponent(const size_t& idx) const
+        const T& getComponent(const size_t& idx) const override
         {
+            puts(__PRETTY_FUNCTION__);
             assert(idx < 3);
             switch (idx)
             {
@@ -158,9 +157,11 @@ class Mat;
     using Vec2i = Vec<2, int>;
 
     template <typename T>
-    class Vec<3, T>
+    class Vec<3, T>: public VecBase<3, T>
     {
         using braced_list = std::initializer_list<T>;
+        using TClass = Vec<3,T>;
+        using TBase = VecBase<3,T>;
 
     private CONSTANTS:
 
@@ -172,40 +173,18 @@ class Mat;
 
     public CTORS:
 
-        Vec()
-        {
-            for (size_t i = 0; i < DIM; i++)
-            {
-                const_cast<T&>(getComponent(i++)) = T();
-            }
-        }
+        Vec() { TBase::init(); }
 
-        Vec(const braced_list& list) {
-            assert(list.size() == DIM);
+        Vec(const VecBase<DIM,T>& other) { TBase::init(other); }
 
-            size_t i = 0;
-            for (auto& el: list)
-            {
-                const_cast<T&>(getComponent(i++)) = el;
-            }
-        }
-
+        Vec(const braced_list& list) { TBase::init(list); }
 
     public OPERATORS:
 
-        T& operator [] (const size_t& idx)
-        {
-            return const_cast<T&>(getComponent(idx));
-        }
-
-        const T& operator [] (const size_t& idx) const
-        {
-            return  getComponent(idx);
-        }
 
     private METHODS:
 
-        inline const T& getComponent(const size_t& idx) const
+        const T& getComponent(const size_t& idx) const override
         {
             assert(idx < DIM);
             switch (idx)
@@ -466,7 +445,7 @@ class Mat;
 template<size_t DIM, typename T>
 struct dt
 {
-    static T det(const Mat<DIM, DIM, T> &src)
+    static T det(const Mat<DIM, DIM, T>& src)
     {
         T ret = 0;
         for (size_t i = 0; i < DIM; i++)
@@ -480,7 +459,7 @@ struct dt
 template<typename T>
 struct dt<1, T>
 {
-    static T det(const Mat<1, 1, T> &src)
+    static T det(const Mat<1, 1, T>& src)
     {
         return src[0][0];
     }

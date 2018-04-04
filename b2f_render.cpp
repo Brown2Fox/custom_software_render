@@ -516,11 +516,12 @@ int main() {
 
     gm::Vec3f c = a+b;
 
+    c.z = 121;
+
     std::cout << "C: " << c << std::endl;
 
     printf("%f, %f, %f\n", c.x, c.y, c.z);
-
-    printf("%p %p", &c.x, &c[0]);
+    printf("%f, %f, %f\n", c[0], c[1], c[2]);
 
 	return 0;
 }

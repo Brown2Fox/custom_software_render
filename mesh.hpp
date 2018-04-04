@@ -105,7 +105,7 @@ namespace mesh
             {
                 iss >> trash;
 //                gm::Vec3f v{0, 0, 0};
-                gm::Vec<3, float> v{0, 0, 0};
+                gm::Vec3f v{0, 0, 0};
                 for (int i = 0; i < 3; i++) iss >> v[i];
                 vertices.push_back(v);
                 continue;
