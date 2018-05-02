@@ -34,18 +34,18 @@ namespace mesh
 
     struct Face
     {
-        std::vector<int> vertices_nums;
-        std::vector<int> normals_nums;
-        std::vector<int> txcoords_nums;
+        std::vector<size_t> vertices_nums;
+        std::vector<size_t> txcoords_nums;
+        std::vector<size_t> normals_nums;
 
-        void set(unsigned int vertex_num, unsigned int normal_num, unsigned int txcoord_num, unsigned short ii)
+        void set(size_t vertex_num, size_t txcoord_num, size_t normal_num, unsigned short ii)
         {
             vertices_nums[ii] = vertex_num-1;
             normals_nums[ii] = normal_num-1;
             txcoords_nums[ii] = txcoord_num-1;
         }
 
-        void push_back(unsigned int vertex_num, unsigned int normal_num, unsigned int txcoord_num)
+        void push_back(size_t vertex_num, size_t txcoord_num, size_t normal_num)
         {
             vertices_nums.push_back(vertex_num - 1);
             normals_nums.push_back(normal_num - 1);
@@ -64,8 +64,8 @@ namespace mesh
     public:
 
         std::vector<Point> vertices;    // v 1.0 1.0 1.0
-        std::vector<Vector> normals; // vn 1.0 1.0 1.0
         std::vector<Coord2d> txcoords; // vt 1.0 1.0
+        std::vector<Vector> normals; // vn 1.0 1.0 1.0
 
         //std::vector<Face> f_list;    //  f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3 v4/vt4/vn4 ...
 
@@ -87,6 +87,16 @@ namespace mesh
 
         inline Face get_face(int f_idx) const;
 
+        std::tuple<size_t, size_t, size_t> getIndices(const std::string &line);
+
+        bool isVertex(const std::string &line);
+
+        bool isNormal(const std::string &line);
+
+        bool isTexCoord(const std::string &line);
+
+        bool isFace(const std::string &line);
+
     };
 
 
@@ -100,10 +110,10 @@ namespace mesh
         for (std::string line; std::getline(input, line);)
         {
             std::istringstream iss(line);
-            char trash;
-            if (line.compare(0, 2, "v ") == 0)
+            char trash[3];
+            if (isVertex(line))
             {
-                iss >> trash;
+                iss.read(trash, 2);
 //                gm::Vec3f v{0, 0, 0};
                 gm::Vec3f v{0, 0, 0};
                 for (int i = 0; i < 3; i++) iss >> v[i];
@@ -111,18 +121,18 @@ namespace mesh
                 continue;
             }
 
-            if (line.compare(0, 3, "vn ") == 0)
+            if (isNormal(line))
             {
-                iss >> trash >> trash;
+                iss.read(trash, 3);
                 gm::Vec3f vn = {0, 0, 0};
                 for (size_t i = 0; i < 3; i++) iss >> vn[i];
                 normals.push_back(vn);
                 continue;
             }
 
-            if (line.compare(0, 3, "vt ") == 0)
+            if (isTexCoord(line))
             {
-                iss >> trash >> trash;
+                iss.read(trash, 3);
                 gm::Vec2f vt = {0, 0};
                 for (int i = 0; i < 2; i++) iss >> vt[i];
                 txcoords.push_back(vt);
@@ -130,17 +140,16 @@ namespace mesh
             }
 
             //  f f1/ft1/fn1 f2/ft2/fn2 f3/ft3/fn3 f4/ft4/fn4 ...
-            if (line.compare(0, 2, "f ") == 0)
+            if (isFace(line))
             {
-
                 Face f;
-                int v = 0;
-                int vt = 0;
-                int vn = 0;
-                iss >> trash;
-                while (iss >> v >> trash >> vt >> trash >> vn)
+
+                iss.read(trash, 2);
+                for (std::string str; std::getline(iss, str, ' ') || std::getline(iss, str);)
                 {
-                    f.push_back(v, vt, vn);
+                    auto indices = getIndices(str);
+                    std::cout << std::get<0>(indices) << "/" << std::get<1>(indices) << "/" << std::get<2>(indices) << std::endl;
+                    f.push_back(std::get<0>(indices), std::get<1>(indices), std::get<2>(indices));
                 }
 
                 faces.push_back(f);
@@ -153,9 +162,46 @@ namespace mesh
     }
 
 
-    Mesh::~Mesh()
+    std::tuple<size_t, size_t, size_t> Mesh::getIndices(const std::string &line)
     {
+        size_t v = 0;
+        size_t vt = 0;
+        size_t vn = 0;
+        std::string value;
+        std::stringstream source(line);
+
+        std::getline(source, value, '/');
+        v = value.empty() ? 0 : std::stoul(value);
+        std::getline(source, value, '/');
+        vt = value.empty() ? 0 : std::stoul(value);
+        std::getline(source, value, ' ');
+        vn = value.empty() ? 0 : std::stoul(value);
+
+        return std::make_tuple(v, vt, vn);
     }
+
+    bool Mesh::isVertex(const std::string &line)
+    {
+        return line[0] == 'v' && line[1] == ' ';
+    }
+
+    bool Mesh::isNormal(const std::string &line)
+    {
+        return line[0] == 'v' && line[1] == 'n';
+    }
+
+    bool Mesh::isTexCoord(const std::string &line)
+    {
+        return line[0] == 'v' && line[1] == 't';
+    }
+
+    bool Mesh::isFace(const std::string &line)
+    {
+        return line[0] == 'f';
+    }
+
+
+    Mesh::~Mesh() = default;
 
     gm::Vec3f Mesh::getV(int f_num, int v_num) const
     {

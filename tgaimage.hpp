@@ -75,7 +75,7 @@ public:
 	};
 
 	TGAImage();
-	TGAImage(int w, int h, int bpp);
+	TGAImage(size_t w, size_t h, int bpp);
 	TGAImage(const TGAImage &img);
 	bool read_tga_file(const char *filename);
 	bool write_tga_file(const char *filename, bool rle=true);
