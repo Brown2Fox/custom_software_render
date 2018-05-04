@@ -1,5 +1,6 @@
 .git
 .idea
 .build
+.build_linux
 cmake-build-debug
 assets/

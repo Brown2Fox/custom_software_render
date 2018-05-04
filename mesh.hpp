@@ -34,6 +34,8 @@ namespace mesh
 
     struct Face
     {
+        enum class Type: int { Triangle = 3 };
+
         std::vector<size_t> vertices_nums;
         std::vector<size_t> txcoords_nums;
         std::vector<size_t> normals_nums;
@@ -50,6 +52,11 @@ namespace mesh
             vertices_nums.push_back(vertex_num - 1);
             normals_nums.push_back(normal_num - 1);
             txcoords_nums.push_back(txcoord_num - 1);
+        }
+
+        bool is_type(Type type)
+        {
+            return vertices_nums.size() == (int)type;
         }
     };
 
@@ -148,7 +155,7 @@ namespace mesh
                 for (std::string str; std::getline(iss, str, ' ') || std::getline(iss, str);)
                 {
                     auto indices = getIndices(str);
-                    std::cout << std::get<0>(indices) << "/" << std::get<1>(indices) << "/" << std::get<2>(indices) << std::endl;
+                    //std::cout << std::get<0>(indices) << "/" << std::get<1>(indices) << "/" << std::get<2>(indices) << std::endl;
                     f.push_back(std::get<0>(indices), std::get<1>(indices), std::get<2>(indices));
                 }
 

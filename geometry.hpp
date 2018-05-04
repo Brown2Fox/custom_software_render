@@ -433,6 +433,7 @@ class Mat;
 
 
     protected METHODS:
+
         virtual T& operator [] (const std::array<size_t, 2>& idxs) = 0;
 
         virtual TVec get_row(size_t row_idx) const = 0;

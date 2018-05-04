@@ -234,27 +234,32 @@ public:
 
 class Camera: public Component
 {
-    float r_ = 2.f;
-    float l_ = -2.f;
-    float t_ = 2.f;
-    float b_ = -2.f;
+    float r_ = 1.f;
+    float l_ = -1.f;
+    float t_ = 1.f;
+    float b_ = -1.f;
     float f_ = 5.f;
     float n_ = -2.f;
 
-    bool perspective_ = false;
+    bool perspective_ = true;
 
     gm::Vec3f up_{0,0,1};
     gm::Vec3f eye_{0,1,0};
+    gm::Vec3f center_{0,1,0};
 
 public:
 
     Camera(): Component{ComponentType::Camera} {}
 
-    Camera(const gm::Vec3f& _up, const gm::Vec3f& _eye):
+    Camera(const gm::Vec3f& _up, const gm::Vec3f& _eye, const gm::Vec3f& _center, bool _perspective):
             Component{ComponentType::Camera},
             up_{_up},
-            eye_{_eye}
+            eye_{_eye},
+            center_{_center},
+            perspective_{_perspective}
     {
+        f_ = gm::length(eye_ - center_);
+
     }
 
 
@@ -269,42 +274,71 @@ public:
         return *this;
     }
 
-    inline gm::Mat4x4 get_view_mat()
-    {
-        auto pos = parent->transform()->get_pos();
-        auto dir = eye_ - pos;
-        auto right_ = gm::normalize(gm::cross(dir, up_));
-
-//        std::cout << dir << std::endl;
-//        std::cout << right_ << std::endl;
-
-        return gm::Mat4x4{
-                {right_.x,up_.x,eye_.x,0},
-                {right_.y,up_.y,eye_.y,0},
-                {right_.z,up_.z,eye_.z,0},
-                {-(pos*right_),-(pos*up_),-(pos*eye_),1}
-        };
+    gm::Mat4x4 get_view_mat() {
+        auto center = parent->transform()->get_pos();
+        gm::Vec3f z = gm::normalize(eye_-center);
+        gm::Vec3f x = gm::normalize(gm::cross(up_, z));
+        gm::Vec3f y = gm::normalize(gm::cross(z, x));
+        gm::Mat4x4 Minv = gm::Mat4x4::Identity();
+        gm::Mat4x4 Tr   = gm::Mat4x4::Identity();
+        for (size_t i=0; i<3; i++) {
+            Minv[{0,i}] = x[i];
+            Minv[{1,i}] = y[i];
+            Minv[{2,i}] = z[i];
+            Tr[{i,3}] = -center[i];
+        }
+        return Minv*Tr;
     }
 
 
+    inline float w() { return std::abs(r_ - l_); }
+    inline float h() { return std::abs(t_ - b_); }
+    inline float d() { return std::abs(f_ - n_); }
+
     inline gm::Mat4x4 get_persp_mat()
     {
+//        return gm::Mat4x4{
+//                {2.f * n_ / w(), 0.f, (r_ + l_) / w(), 0.f},
+//                {0.f, 2.f * n_ / h(), (t_ + b_) / h(), 0.f},
+//                {0.f, 0.f, -(f_ + n_)/d(), (-2 * f_ * n_) / d()},
+//                {0.f, 0.f, -1, 0}
+//        };
+
         return gm::Mat4x4{
-                {2.f * n_ / (r_ - l_), 0.f, (r_ + l_) / (r_ - l_), 0.f},
-                {0.f, 2.f * n_ / (t_ - b_), (t_ + b_) / (t_ - b_), 0.f},
-                {0.f, 0.f, -(f_ + n_)/(f_ - n_), -2 * f_/ (f_ - n_)},
-                {0.f, 0.f, -1, 0}
+                {2 / w(), 0, 0, 0},
+                {0, 2 / h(), 0, 0},
+                {0, 0, 2 / d(), 0},
+                {0, 0, -1 / d(), 1}
         };
 
+    }
+
+
+
+    inline gm::Mat4x4 get_viewport_mat(float x, float y, float w, float h)
+    {
+        return gm::Mat4x4{
+                {w/2, 0, 0, x+w/2},
+                {0, h/2, 0, y+h/2},
+                {0, 0, d()/2, d()/2},
+                {0, 0, 0, 1}
+        };
     }
 
     inline gm::Mat4x4 get_ortho_mat()
     {
+//        return gm::Mat4x4{
+//                {2 / w(), 0, 0, -(r_ + l_) / w()},
+//                {0, 2 / h(), 0, -(t_ + b_) / h()},
+//                {0, 0, 2 / d(), -(f_ + n_) / d()},
+//                {0, 0, 0, 1}
+//        };
+
         return gm::Mat4x4{
-                {2.f / (r_ - l_), 0.f, 0, -(r_ + l_) / (r_ - l_)},
-                {0.f, 2.f / (t_ - b_), 0, -(t_ + b_) / (t_ - b_)},
-                {0.f, 0.f, 2.f / (f_ - n_), -(f_ + n_) / (f_ - n_)},
-                {0.f, 0.f, 0.f, 1}
+                {2 / w(), 0, 0, 0},
+                {0, 2 / h(), 0, 0},
+                {0, 0, 2 / d(), 0},
+                {0, 0, 0, 1}
         };
     }
 
@@ -385,10 +419,13 @@ class B2FRender
 
     gm::Vec3f light_dir{};
 
-    gm::Mat4x4 P{};
-    gm::Mat4x4 V{};
+    gm::Mat4x4 P;
+    gm::Mat4x4 V;
+    gm::Mat4x4 VP;
     size_t width{};
     size_t height{};
+
+    Camera mainCam;
 
     ZBuffer z_buffer;
     RawImage img_buffer;
@@ -407,30 +444,36 @@ public:
         img_buffer.resize(width*height);
     }
 
-    void rasterizeFace(std::vector<gm::Vec3f>& v, std::vector<gm::Vec2f>& vt, gm::Vec3f& fn) {
+    void rasterizeTriangle(std::array<gm::Vec3f, 3>& v, std::array<gm::Vec2f, 3>& vt, std::array<gm::Vec3f, 3>& vn)
+    {
+        /**
+         *           Some Triangle
+         *
+         *              v[2]
+         *
+         *               |▶
+         *               |  ▶   <-- B side up segment
+         *               |    ▶
+         *   A side -->  |------▶  v[1]
+         *               |    ▶
+         *               |  ▶   <-- B side down segment
+         *               |▶
+         *
+         *              v[0]
+         */
 
         calls++;
 
-//        printf("calls - %i\n", calls);
 
-        float intensity = gm::dot(fn, light_dir) * 70;
+        if (v[0].y == v[1].y && v[0].y == v[2].y) { return; }
+        if (v[0].y > v[1].y) { std::swap(v[0], v[1]); std::swap(vn[0], vn[1]); }
+        if (v[0].y > v[2].y) { std::swap(v[0], v[2]); std::swap(vn[0], vn[2]); }
+        if (v[1].y > v[2].y) { std::swap(v[1], v[2]); std::swap(vn[1], vn[2]); }
 
-        if (v[0].y == v[1].y && v[0].y == v[2].y)
-        {
-            return;
-        }
-        if (v[0].y > v[1].y)
-        {
-            std::swap(v[0], v[1]);
-        }
-        if (v[0].y > v[2].y)
-        {
-            std::swap(v[0], v[2]);
-        }
-        if (v[1].y > v[2].y)
-        {
-            std::swap(v[1], v[2]);
-        }
+        float ity0 = gm::dot(vn[0], light_dir);
+        float ity1 = gm::dot(vn[1], light_dir);
+        float ity2 = gm::dot(vn[2], light_dir);
+
         gm::Vec3f& start_p = v[0];
         gm::Vec3f& middle_p = v[1];
         gm::Vec3f& end_p = v[2];
@@ -459,47 +502,41 @@ public:
 
         for (int y = 0; y <= A_height; y++)
         {
-            bool is_upSegm = (y > B_downSegm_height) || (middle_p.y == start_p.y);
-
-            const gm::Vec3f start_A = start_p;
-            const int y_A = y;
-
-            const float f_B_height = is_upSegm ? f_B_upSegm_height : f_B_downSegm_height;
-            const gm::Vec3f& dir_B = is_upSegm ? dir_B_upSegm : dir_B_downSegm;
-            const gm::Vec3f& start_B = is_upSegm ? middle_p : start_p;
-            const int y_B = is_upSegm ? y - B_downSegm_height : y;
+            const gm::Vec3f& start_A    = start_p;
+            const int        y_A        = y;
 
             float alpha =  y_A / f_A_height;
             gm::Vec3f A = {start_A + (dir_A * alpha)};
+            float ityA =   ity0 + (ity2-ity0)*alpha;
+
+            bool is_upSegm = (y > B_downSegm_height) || (middle_p.y == start_p.y);
+
+            const float      f_B_height = is_upSegm ? f_B_upSegm_height     : f_B_downSegm_height;
+            const gm::Vec3f& dir_B      = is_upSegm ? dir_B_upSegm          : dir_B_downSegm;
+            const gm::Vec3f& start_B    = is_upSegm ? middle_p              : start_p;
+            const int        y_B        = is_upSegm ? y - B_downSegm_height : y;
+
 
             float beta = y_B / f_B_height;
             gm::Vec3f B = {start_B + (dir_B * beta)};
-            //gm::vec2 vtA = vt[0] + dir_vtA * alpha;
+            float ityB = is_upSegm ? ity1 + (ity2-ity1)*beta : ity0 + (ity1-ity0)*beta;
 
 
-            if (A.x > B.x)
-            {
-                std::swap(A, B);
-                //std::swap(vtA, vtB);
-            }
+            if (A.x > B.x) { std::swap(A, B); std::swap(ityA, ityB); }
 
             int start_x = std::lrint(A.x);
             int end_x = std::lrint(B.x);
-            int Py = start_y + y;
 
-            for (int Px = start_x; Px <= end_x; Px++)
+            for (int Px = start_x, Py = start_y + y; Px <= end_x; Px++)
             {
-
-//                printf("Py: %i, Px: %i, calls - %i\n", Py, Px, calls);
                 float phi = (end_x == start_x) ? 1.f : (Px - start_x) / static_cast<float>(end_x - start_x);
                 gm::Vec3f dir = B - A;
                 gm::Vec3f P = {A + (dir * phi)}; // Point on rendering triangle
+                float ityP =  ityA + (ityB - ityA) * phi;
 
                 //gm::vec2 uvP = vtA + (vtB - vtA) * phi;
 
                 size_t idx = Px + Py * width;
-
-                //std::cout << "idx img: " << idx << "\n";
 
                 if (idx < width*height)
                 {
@@ -509,17 +546,15 @@ public:
                         if (P.z < min_z_buffer) min_z_buffer = P.z;
                         z_buffer[idx] = P.z;
 
-                        auto color = static_cast<uint8_t>(100*std::abs(intensity) + 50);
-                        color = (color < 0) ? 0 : color;
-                        color = (color > 255) ? 255 : color;
-
-                        if (intensity > 0)
+                        if (ityP > 0)
                         {
-                            img_buffer[idx] = RGBAPixel{Px, Py, {color, 0, 0}};
+                            auto color = static_cast<uint8_t>(ityP*255);
+                            img_buffer[idx] = RGBAPixel{Px, Py, {color, color, color}};
                         }
                         else
                         {
-                            img_buffer[idx] = RGBAPixel{Px, Py, {0, color, color}};
+                            uint8_t color = 15;
+                            img_buffer[idx] = RGBAPixel{Px, Py, {color, color, color}};
                         }
 
                     }
@@ -536,8 +571,17 @@ public:
         for (auto& pair: scene.cameras)
         {
             auto cam = pair.second;
+//            float r_ = 2.f;
+//            float l_ = -2.f;
+//            float t_ = 2.f;
+//            float b_ = -2.f;
+//            float f_ = 5.f;
+//            float n_ = -2.f;
+//            [-2, 2]*[-2,2]*[-2,5] 4, 4
+
             P = cam->get_projection_mat();
             V = cam->get_view_mat();
+            VP = cam->get_viewport_mat(0,0,width,height);
             break;
         }
 
@@ -562,57 +606,45 @@ public:
             auto& txcoords = mr->mesh->txcoords;
             auto& normals = mr->mesh->normals;
 
-            gm::Mat4x4 MVP = P * V * M;
+            gm::Mat4x4 T = VP * P * V * M;
 
-            // transform model vertices to render space
             std::vector<mesh::Point> render_space{};
             for (auto vert: vertices)
             {
-                // wrap vertex into homogeneous coords
                 gm::Vec4f v = {vert.x, vert.y, vert.z, 1.f};
-                // projecting
-                //gm::Vec4f v_p = MVP * v;
-                gm::Vec4f v_p = P * M * v;
-                // convert homogeneous coords to normalized device coords (NDC)
-                //gm::vec3 v_ndc = gm::vec3(v_p.x / v_p.w, v_p.y / v_p.w, v_p.z / v_p.w);
-                gm::Vec3f v_ndc = {v_p.x / v_p.w, v_p.y / v_p.w, v_p.z / v_p.w};
-                // convert normalized device coords to screen space coords
-                render_space.push_back({(v_ndc.x + 0.5f) * width, (v_ndc.y + 0.5f) * height, v_ndc.z});
+                gm::Vec4f v_p =  T * v;
+                gm::Vec3f v_ndc = (v_p.w != 0) ? gm::Vec3f{v_p.x / v_p.w, v_p.y / v_p.w, v_p.z / v_p.w} : gm::Vec3f{v_p.x, v_p.y, v_p.z};
+                render_space.push_back(v_ndc);
             }
 
             // render faces (triangles)
             for (auto face: faces)
             {
-                // calculate face normal
-//                auto face_side_1 = vertices[face.vertices_nums[1]] - vertices[face.vertices_nums[0]];
-//                auto face_side_2 = vertices[face.vertices_nums[2]] - vertices[face.vertices_nums[0]];
-//                gm::Vec3f face_norm = gm::normalize(gm::cross(face_side_1, face_side_2));
 
-                gm::Vec3f face_norm{};
-                for (auto norm_num: face.normals_nums)
+                if (face.is_type(mesh::Face::Type::Triangle))
                 {
-                    face_norm = face_norm + normals[norm_num];
+                    std::array<gm::Vec3f, 3> face_verts;
+                    std::array<gm::Vec2f, 3> face_txcoords;
+                    std::array<gm::Vec3f, 3> face_norms;
+
+                    for (int i = 0; i < 3; i++)
+                    {
+                        auto vert_num = face.vertices_nums[i];
+                        auto txcoord_num = face.txcoords_nums[i];
+                        auto norm_num = face.normals_nums[i];
+
+                        face_verts[i] = render_space[vert_num];
+                        //face_txcoords[i] = txcoords[txcoord_num];
+                        face_norms[i] = normals[norm_num];
+                    }
+
+                    rasterizeTriangle(face_verts, face_txcoords, face_norms);
                 }
-                face_norm = gm::normalize(face_norm);
 
-                std::vector<gm::Vec3f> face_vertx;
-                for (auto vert_num: face.vertices_nums)
-                {
-                    face_vertx.push_back(render_space[vert_num]);
-                }
-
-                std::vector<gm::Vec2f> face_txcoord;
-//                for (auto txcoord_num: face.txcoords_nums)
-//                {
-//                    face_txcoord.push_back(txcoords[txcoord_num]);
-//                }
-
-                rasterizeFace(face_vertx, face_txcoord, face_norm);
             }
 
         }
     }
-
 
     void save_render(const std::string &out_file_name) {
 
@@ -650,4 +682,4 @@ public:
 
 
 
-#endif //B2FRENDER_B2F_RENDER_HPP
+#endif //B2FRENDER_

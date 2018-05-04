@@ -14,4 +14,4 @@ FILE(GLOB FILES
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-add_executable(B2FRenderExec ${FILES})
+add_executable(B2FRender ${FILES})
