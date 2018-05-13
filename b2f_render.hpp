@@ -13,6 +13,8 @@
 #include "tgaimage.hpp"
 #include "b2f_features.hpp"
 
+using ullong = unsigned long long;
+
 template<typename TInt>
 struct RGBAColor
 {
@@ -58,10 +60,14 @@ enum class ComponentType: int {
 class Component {
 
 public:
-    Component(): Type(ComponentType::Nothing) {}
+    Component()
+	: Type(ComponentType::Nothing) 
+	, parent(nullptr)
+	{}
 
-    explicit Component(ComponentType _type) :
-            Type{_type}
+    explicit Component(ComponentType _type) 
+	: Type{_type}
+	, parent(nullptr)
     {}
 
     void set_parent(SceneObject* _parent)
@@ -91,6 +97,12 @@ public:
 
     Transform() = default;
 
+	Transform(const Transform& other)
+	: pos_(other.pos_)
+	, rot_(other.rot_)
+	, scale_(other.scale_)
+	{}
+	
     Transform& operator=(const Transform& _tr) {
         pos_ = _tr.pos_;
         rot_ = _tr.rot_;
@@ -99,12 +111,12 @@ public:
     }
 
 
-    Transform(const gm::Vec3f& _pos, const gm::Vec3f& _rot, const gm::Vec3f& _scale) : Component(ComponentType::Transform)
-    {
-        pos_ = _pos;
-        rot_ = _rot;
-        scale_ = _scale;
-    }
+    Transform(const gm::Vec3f& _pos, const gm::Vec3f& _rot, const gm::Vec3f& _scale) 
+	: Component(ComponentType::Transform)
+	, pos_(_pos)
+	, rot_(_rot)
+	, scale_(_scale)
+    {}
 
 
     inline gm::Mat4x4 get_translation_mat() {
@@ -179,10 +191,10 @@ public:
 
     DirectionLight(): Component(ComponentType::Light) {}
 
-    explicit DirectionLight(const gm::Vec3f& _direction):  Component(ComponentType::Light)
-    {
-        direction_ = _direction;
-    }
+    explicit DirectionLight(const gm::Vec3f& _direction)
+	: Component(ComponentType::Light)
+	, direction_(_direction)
+    {}
 
     gm::Vec3f get_direction() {
         return direction_;
@@ -202,7 +214,6 @@ class SceneObject {
 
 
 public:
-
 
     SceneObject(const std::string& _name): name_{_name} {}
 
@@ -251,17 +262,28 @@ public:
 
     Camera(): Component{ComponentType::Camera} {}
 
-    Camera(const gm::Vec3f& _up, const gm::Vec3f& _eye, const gm::Vec3f& _center, bool _perspective):
-            Component{ComponentType::Camera},
-            up_{_up},
-            eye_{_eye},
-            center_{_center},
-            perspective_{_perspective}
+    Camera(const gm::Vec3f& _up, const gm::Vec3f& _eye, const gm::Vec3f& _center, bool _perspective)
+	: Component{ComponentType::Camera}
+	, up_{_up}
+	, eye_{_eye}
+	, center_{_center}
+	, perspective_{_perspective}
     {
         f_ = gm::length(eye_ - center_);
-
     }
 
+	Camera(const Camera& other)
+	: r_(other.r_)
+	, l_(other.l_)
+	, t_(other.t_)
+	, b_(other.b_)
+	, f_(other.f_)
+	, n_(other.n_)
+	, perspective_(other.perspective_)
+	, up_(other.up_)
+	, eye_(other.eye_)
+	, center_(other.center_)
+	{}
 
     Camera& operator= (const Camera& _cam) {
         r_ = _cam.r_;
@@ -276,11 +298,11 @@ public:
 
     gm::Mat4x4 get_view_mat() {
         auto center = parent->transform()->get_pos();
+        gm::Mat4x4 Minv{gm::Mat4x4::Identity()};
         gm::Vec3f z = gm::normalize(eye_-center);
         gm::Vec3f x = gm::normalize(gm::cross(up_, z));
         gm::Vec3f y = gm::normalize(gm::cross(z, x));
-        gm::Mat4x4 Minv = gm::Mat4x4::Identity();
-        gm::Mat4x4 Tr   = gm::Mat4x4::Identity();
+		gm::Mat4x4 Tr{gm::Mat4x4::Identity()};
         for (size_t i=0; i<3; i++) {
             Minv[{0,i}] = x[i];
             Minv[{1,i}] = y[i];
@@ -362,7 +384,7 @@ public:
         static_objects_.push_back(wo);
 
         std::hash<std::string> hasher{};
-        size_t hash{hasher(wo.get_name())};
+        ullong hash{hasher(wo.get_name())};
 
         for (auto& comp: wo.components())
         {
@@ -402,10 +424,10 @@ public:
     }
 
 
-    std::map<size_t, std::shared_ptr<Transform>> transforms;
-    std::map<size_t, std::shared_ptr<Camera>> cameras;
-    std::map<size_t, std::shared_ptr<MeshRenderer>> mesh_renderers;
-    std::map<size_t, std::shared_ptr<DirectionLight>> lights;
+    std::map<ullong, std::shared_ptr<Transform>> transforms;
+    std::map<ullong, std::shared_ptr<Camera>> cameras;
+    std::map<ullong, std::shared_ptr<MeshRenderer>> mesh_renderers;
+    std::map<ullong, std::shared_ptr<DirectionLight>> lights;
 
 };
 
@@ -422,8 +444,8 @@ class B2FRender
     gm::Mat4x4 P;
     gm::Mat4x4 V;
     gm::Mat4x4 VP;
-    size_t width{};
-    size_t height{};
+    ullong width{};
+    ullong height{};
 
     Camera mainCam;
 
@@ -444,7 +466,7 @@ public:
         img_buffer.resize(width*height);
     }
 
-    void rasterizeTriangle(std::array<gm::Vec3f, 3>& v, std::array<gm::Vec2f, 3>& vt, std::array<gm::Vec3f, 3>& vn)
+    void rasterize_triangle(std::array<gm::Vec3f, 3> &v, std::array<gm::Vec2f, 3> &vt, std::array<gm::Vec3f, 3> &vn)
     {
         /**
          *           Some Triangle
@@ -527,34 +549,34 @@ public:
             int start_x = std::lrint(A.x);
             int end_x = std::lrint(B.x);
 
-            for (int Px = start_x, Py = start_y + y; Px <= end_x; Px++)
+            for (int Ptx = start_x, Pty = start_y + y; Ptx <= end_x; Ptx++)
             {
-                float phi = (end_x == start_x) ? 1.f : (Px - start_x) / static_cast<float>(end_x - start_x);
+                float phi = (end_x == start_x) ? 1.f : (Ptx - start_x) / static_cast<float>(end_x - start_x);
                 gm::Vec3f dir = B - A;
-                gm::Vec3f P = {A + (dir * phi)}; // Point on rendering triangle
-                float ityP =  ityA + (ityB - ityA) * phi;
+                gm::Vec3f Pt = {A + (dir * phi)}; // Point on rendering triangle
+                float ityPt =  ityA + (ityB - ityA) * phi;
 
                 //gm::vec2 uvP = vtA + (vtB - vtA) * phi;
 
-                size_t idx = Px + Py * width;
+                ullong idx = Ptx + Pty * width;
 
                 if (idx < width*height)
                 {
-                    if (P.z > z_buffer[idx])
+                    if (Pt.z > z_buffer[idx])
                     {
-                        if (P.z > max_z_buffer) max_z_buffer = P.z;
-                        if (P.z < min_z_buffer) min_z_buffer = P.z;
-                        z_buffer[idx] = P.z;
+                        if (Pt.z > max_z_buffer) max_z_buffer = Pt.z;
+                        if (Pt.z < min_z_buffer) min_z_buffer = Pt.z;
+                        z_buffer[idx] = Pt.z;
 
-                        if (ityP > 0)
+                        if (ityPt > 0)
                         {
-                            auto color = static_cast<uint8_t>(ityP*255);
-                            img_buffer[idx] = RGBAPixel{Px, Py, {color, color, color}};
+                            auto color = static_cast<uint8_t>(ityPt*255);
+                            img_buffer[idx] = RGBAPixel{Ptx, Pty, {color, color, color}};
                         }
                         else
                         {
                             uint8_t color = 15;
-                            img_buffer[idx] = RGBAPixel{Px, Py, {color, color, color}};
+                            img_buffer[idx] = RGBAPixel{Ptx, Pty, {color, color, color}};
                         }
 
                     }
@@ -638,7 +660,7 @@ public:
                         face_norms[i] = normals[norm_num];
                     }
 
-                    rasterizeTriangle(face_verts, face_txcoords, face_norms);
+                    rasterize_triangle(face_verts, face_txcoords, face_norms);
                 }
 
             }

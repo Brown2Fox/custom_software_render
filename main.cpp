@@ -3,16 +3,12 @@
 
 int main(int argc, char* argv[]) {
 
-    /**                         y
+    /**
      * Left-Right ::= -X..+X    ^  z
      * Down-Up ::= -y..+y       | /
      * Near-Far ::= -z..+z      |/___> x
      */
 
-    int a;
-
-    if (a == 4) { std::cout << a << std::endl; }
-    
     Scene mainScene{};
 
     SceneObject head{"head1"};
